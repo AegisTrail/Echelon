@@ -11,7 +11,7 @@ Echelon is a monitoring daemon that watches specific line ranges in GitHub code 
 - Interactive init mode for quick start
 - Runs as a daemon when started with the `--run` flag  
 
-![Tool screenshot](https://i.ibb.co/dzrn00G/echelon-screenshot.png)
+![Tool screenshot](echelon-screenshot.png)
 
 
 > [!NOTE]
