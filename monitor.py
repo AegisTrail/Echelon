@@ -1,18 +1,28 @@
 import time
 import hashlib
 import difflib
-from typing import Optional
+from typing import Optional, Protocol
 
 from config_manager import ConfigManager
 from github_client import GitHubClient
-from notifier import DiscordNotifier
 from ollama_client import OllamaClient
 from gemini_client import GeminiClient
 from openai_client import OpenAIClient
+from models import SnippetConfig
 
 
 def hash_str(s: str) -> str:
     return hashlib.sha256((s or "").encode("utf-8")).hexdigest()[:10]
+
+
+class Notifier(Protocol):
+    def notify_change(
+        self,
+        snippet: SnippetConfig,
+        diff_text: str,
+        diff_summary: Optional[str] = None,
+        diff_source: Optional[str] = None,
+    ) -> None: ...
 
 
 class SnippetMonitor:
@@ -20,7 +30,7 @@ class SnippetMonitor:
         self,
         config_manager: ConfigManager,
         github_client: GitHubClient,
-        notifier: DiscordNotifier,
+        notifier: Notifier,
         debug: bool = False,
         provider: Optional[str] = None,
         model: Optional[str] = None,
@@ -52,11 +62,6 @@ class SnippetMonitor:
             print("No snippets configured; nothing to monitor.")
             return
 
-        webhook = config.webhook_url
-        if not webhook:
-            print("No webhook configured in config.json; cannot send alerts.")
-            return
-
         provider = (self.provider or "").lower()
         model = self.model
 
@@ -81,7 +86,7 @@ class SnippetMonitor:
                 openai_client = OpenAIClient(api_key=key, model=model, endpoint=None)
 
         if self.debug:
-            print(f"[DEBUG] provider={provider} model={model} webhook={bool(webhook)}")
+            print(f"[DEBUG] provider={provider} model={model}")
 
         updated = False
         for snippet in config.snippets:
@@ -143,7 +148,6 @@ class SnippetMonitor:
                         diff_source = "Ollama"
 
                     self.notifier.notify_change(
-                        webhook,
                         snippet,
                         diff_text,
                         diff_summary=diff_summary,

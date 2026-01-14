@@ -7,7 +7,8 @@ from config_manager import ConfigManager
 from github_client import GitHubClient
 from models import SnippetConfig
 from monitor import SnippetMonitor
-from notifier import DiscordNotifier
+from discord import DiscordNotifier
+from telegram import TelegramNotifier
 from utils import snippet_id_from_parsed
 
 
@@ -32,6 +33,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", help="Model name for the selected provider.")
     parser.add_argument("--run", action="store_true", help="Start monitoring daemon.")
     parser.add_argument("--init", action="store_true", help="Interactively prompt to add missing API keys / Discord webhook")
+    notify = parser.add_mutually_exclusive_group()
+    notify.add_argument("--discord", action="store_true", help="Send notifications via Discord webhook.")
+    notify.add_argument("--telegram", action="store_true", help="Send notifications via Telegram bot.")
 
     return parser
 
@@ -50,6 +54,24 @@ def prompt_if_missing(config_manager: ConfigManager) -> None:
             print("Saved webhook_url to config.json")
     else:
         print("webhook_url already set in config.json")
+
+    if not config.telegram_bot_token:
+        val = getpass.getpass("Telegram bot token [skip]: ").strip()
+        if val:
+            config.telegram_bot_token = val
+            changed = True
+            print("Saved telegram_bot_token to config.json")
+    else:
+        print("telegram_bot_token already set in config.json")
+
+    if not config.telegram_chat_id:
+        val = input("Telegram chat id (e.g. -100123...) [skip]: ").strip()
+        if val:
+            config.telegram_chat_id = val
+            changed = True
+            print("Saved telegram_chat_id to config.json")
+    else:
+        print("telegram_chat_id already set in config.json")
 
     if not config.openai_key:
         val = getpass.getpass("OpenAI API key [skip]: ").strip()
@@ -174,7 +196,6 @@ def main() -> None:
 
     config_manager = ConfigManager()
     github_client = GitHubClient()
-    notifier = DiscordNotifier()
     config = config_manager.load()
 
     if args.init:
@@ -206,9 +227,25 @@ def main() -> None:
         print("No snippets configured in config.json. Add at least one with --add before running daemon.")
         return
 
-    if not config.webhook_url:
-        print("No Discord webhook configured in config.json. Run with --init to add values interactively, or edit config.json.")
-        return
+    use_telegram = bool(args.telegram)
+    use_discord = bool(args.discord) or not use_telegram
+
+    notifier = None
+    if use_discord:
+        if not config.webhook_url:
+            print(
+                "No Discord webhook configured in config.json. Run with --init to add values interactively, or edit config.json."
+            )
+            return
+        notifier = DiscordNotifier(webhook_url=config.webhook_url)
+    else:
+        if not config.telegram_bot_token or not config.telegram_chat_id:
+            print(
+                "Telegram selected but telegram_bot_token or telegram_chat_id missing in config.json. "
+                "Run with --init to add values interactively, or edit config.json."
+            )
+            return
+        notifier = TelegramNotifier(bot_token=config.telegram_bot_token, chat_id=config.telegram_chat_id)
 
     provider = args.ai.lower() if args.ai else None
     if provider:

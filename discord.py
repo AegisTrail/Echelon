@@ -1,21 +1,24 @@
+from __future__ import annotations
+
 from typing import Optional
+
 import requests
+
 from models import SnippetConfig
 
 
 class DiscordNotifier:
-    def __init__(self):
-        pass
+    def __init__(self, webhook_url: str):
+        self.webhook_url = webhook_url or ""
 
     def notify_change(
         self,
-        webhook_url: str,
         snippet: SnippetConfig,
         diff_text: str,
         diff_summary: Optional[str] = None,
         diff_source: Optional[str] = None,
     ) -> None:
-        if not webhook_url:
+        if not self.webhook_url:
             print("No webhook URL configured; skipping Discord notification.")
             return
 
@@ -52,8 +55,9 @@ class DiscordNotifier:
         }
 
         try:
-            resp = requests.post(webhook_url, json=payload, timeout=10)
+            resp = requests.post(self.webhook_url, json=payload, timeout=10)
             if resp.status_code >= 400:
                 print(f"Failed to send Discord notification: {resp.status_code} {resp.text}")
         except Exception as e:
             print(f"Error sending Discord notification: {e}")
+

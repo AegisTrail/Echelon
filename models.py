@@ -20,6 +20,8 @@ class SnippetConfig:
 @dataclass
 class AppConfig:
     webhook_url: str = ""
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
     interval_seconds: int = 300
     ollama_endpoint: str = ""
     ollama_model: str = ""
@@ -32,6 +34,8 @@ class AppConfig:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "webhook_url": self.webhook_url,
+            "telegram_bot_token": self.telegram_bot_token,
+            "telegram_chat_id": self.telegram_chat_id,
             "interval_seconds": self.interval_seconds,
             "ollama_endpoint": self.ollama_endpoint,
             "ollama_model": self.ollama_model,
@@ -64,6 +68,8 @@ class AppConfig:
             )
         return AppConfig(
             webhook_url=data.get("webhook_url", ""),
+            telegram_bot_token=data.get("telegram_bot_token", ""),
+            telegram_chat_id=str(data.get("telegram_chat_id", "") or ""),
             interval_seconds=data.get("interval_seconds", 300),
             ollama_endpoint=data.get("ollama_endpoint", ""),
             ollama_model=data.get("ollama_model", ""),

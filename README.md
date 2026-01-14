@@ -15,26 +15,29 @@ Echelon is a monitoring daemon that watches specific line ranges in GitHub code 
 
 
 > [!NOTE]
-> This tool is inspired by the legendary [infosec_us_team's CSM](https://github.com/infosec-us-team/csm), rewritten in Python with additional features like AI summary and addional notification delivery mediums[Telegram, Email] coming soon.
+> This tool is inspired by the legendary [infosec_us_team's CSM](https://github.com/infosec-us-team/csm), rewritten in Python with additional features like AI summary and addional notification delivery mediums[~~Telegram~~, Email] coming soon.
 
 
 ## Usage
 
 ```
-usage: echelon.py [-h] [--add ADD | --remove REMOVE] [--note NOTE] [--time TIME] [--ai AI] [--model MODEL] [--run] [--init]  
-  
-Monitor specific GitHub file line ranges and notify via Discord.  
-  
-options:  
- -h, --help       show this help message and exit  
- --add ADD        Add a new snippet to monitor. Example: "https://github.com/owner/repo/blob/main/path/file.py#L26-L31"  
- --remove REMOVE  Remove a snippet from monitoring by its URL. Example: "https://github.com/owner/repo/blob/main/file.js#L52-L64"  
- --note NOTE      Custom note describing why this snippet is important. Used with --add.  
- --time TIME      Polling interval (seconds) for the daemon while running.  
- --ai AI          AI provider to use for diff summaries: gemini | openai | ollama  
- --model MODEL    Model name for the selected provider (used at run-time only).  
- --run            Start monitoring daemon (reads webhook & API keys from config.json).  
- --init           Interactively prompt to add missing API keys / webhook to config.json (press Enter to skip each).
+usage: echelon.py [-h] [--add ADD | --remove REMOVE] [--note NOTE] [--time TIME] [--ai AI] [--model MODEL] [--run] [--init] [--discord | --telegram]
+
+Echelon - Monitor specific GitHub file line ranges and notify via Discord with AI.
+
+options:
+  -h, --help       show this help message and exit
+  --add ADD        Add a new snippet to monitor. Example: "https://github.com/owner/repo/blob/main/path/file.py#L26-L31"
+  --remove REMOVE  Remove a snippet from monitoring by its URL. Example: "https://github.com/owner/repo/blob/main/file.js#L52-L64"
+  --note NOTE      Custom note describing why this snippet is important. Used with --add.
+  --time TIME      Polling interval (seconds) for the daemon.
+  --ai AI          AI provider to use for diff summaries: gemini | openai | ollama
+  --model MODEL    Model name for the selected provider.
+  --run            Start monitoring daemon.
+  --init           Interactively prompt to add missing API keys / Discord webhook
+  --discord        Send notifications via Discord webhook.
+  --telegram       Send notifications via Telegram bot.
+
 ```
 
 ### Initialize config:
@@ -49,15 +52,15 @@ python3 echelon.py --init
 python3 echelon.py --add "https://github.com/Uniswap/v4-core/blob/main/src/ERC6909.sol#L79-L83" --note "Uniswap v4 ERC6909 _mint function"
 ```
 
-### Run the daemon WITHOUT AI Summary:
+### Run the daemon WITHOUT AI Summary (using Discord):
 
 ```
-python3 echelon.py --run --time 3600 # check code changes for every 1 hour
+python3 echelon.py --run --time 3600 --discord # check code changes for every 1 hour
 ```
 
-### Run the daemon WITH chosen AI provider:  
+### Run the daemon WITH chosen AI provider (using Telegram):  
 ```
-python3 echelon.py --run --ai gemini --model gemini-2.5-flash --time 3600
+python3 echelon.py --run --ai gemini --model gemini-2.5-flash --time 3600 --telegram
 ```
 
 ### Configuration:
@@ -65,7 +68,9 @@ python3 echelon.py --run --ai gemini --model gemini-2.5-flash --time 3600
 `config.json` holds all persistent values, including:  
 
 ```
-webhook_url  
+webhook_url
+telegram_bot_token
+telegram_bot_token
 openai_key
 openai_model  
 gemini_api_key
