@@ -42,7 +42,9 @@
 2. Remove the file from history (`git rm --cached config.json`), then rotate.
    History rewrite alone is not enough.
 3. Run `echelon --check-secrets` in CI to catch `discord.com/api/webhooks`,
-   `AIza`, `ghp_`, `sk-`, Telegram token patterns in tracked files.
+   `AIza`, `ghp_`, `glpat_`, `sk-`, Telegram token patterns in tracked files.
+   Synthetic fixtures in tests can carry `# echelon-allow-secret` on the
+   same line; never use the marker outside tests.
 
 ## Network / input hardening
 

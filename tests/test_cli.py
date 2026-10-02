@@ -32,11 +32,26 @@ def test_export_strips_secrets_by_default(tmp_path, monkeypatch):
     assert data["webhook_url"] == ""
 
 
-def test_check_secrets_clean_tree(tmp_path, monkeypatch, capsys):
+def test_check_secrets_flags_fixture_honors_marker(tmp_path, monkeypatch, capsys):
     _mgr(tmp_path, monkeypatch)
-    rc = main(["--check-secrets"])
-    assert rc in (0, 1)  # 1 only if tracked files contain patterns; never crash
-    assert "Scanned" in capsys.readouterr().out or "WARNING" in capsys.readouterr().out
+    monkeypatch.chdir(tmp_path)  # not a git repo: falls back to scanning cwd
+    hook = "https://discord.com/api/webhooks/123/abcdefghij"  # echelon-allow-secret
+    (tmp_path / "leaky.py").write_text(f'TOKEN = "{hook}"\n')
+    prefix, tail = "glpat-abcde", "fghij1234567890"
+    (tmp_path / "marked.py").write_text(f'SAMPLE = "{prefix}{tail}"  # echelon-allow-secret\n')
+    assert main(["--check-secrets"]) == 1
+    out = capsys.readouterr().out
+    assert "WARNING" in out and "leaky.py" in out and "marked.py" not in out
+
+
+def test_check_secrets_repo_tree_clean(monkeypatch, capsys):
+    import pathlib
+
+    repo_root = pathlib.Path(__file__).resolve().parent.parent
+    monkeypatch.chdir(repo_root)
+    monkeypatch.delenv("ECHELON_CONFIG", raising=False)
+    assert main(["--check-secrets"]) == 0
+    assert "no committed-secret patterns found" in capsys.readouterr().out
 
 
 URL = "https://github.com/o/r/blob/main/f.py#L1-L2"

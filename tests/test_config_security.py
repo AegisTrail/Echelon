@@ -7,7 +7,7 @@ from models import AppConfig
 
 
 def test_mask_never_leaks_full_value():
-    sample_token = "ghp_abcdefghij1234567890"  # noqa: S105 - synthetic fixture, not a real credential
+    sample_token = "ghp_abcdefghij1234567890"  # noqa: S105, echelon-allow-secret: synthetic fixture
     masked = mask_secret(sample_token)
     assert sample_token not in masked and len(masked) < len(sample_token)
     assert mask_secret("") == "(not set)"
@@ -21,7 +21,8 @@ def test_redact_masks_webhooks_and_keys():
 
 
 def test_scan_text_masks_preview():
-    findings = scan_text("key https://discord.com/api/webhooks/123/abcdefghij1234567890 end")
+    hook = "https://discord.com/api/webhooks/9/abcdefghij"  # echelon-allow-secret
+    findings = scan_text(f"key {hook} end")
     assert findings and findings[0].pattern_name == "discord-webhook"
     assert "abcdefghij" not in findings[0].preview
 
@@ -111,7 +112,8 @@ def test_invalid_env_int_rejected(tmp_path, monkeypatch):
 def test_gitlab_token_scanned():
     from app_secrets import scan_text
 
-    findings = scan_text("token glpat-abcdefghij1234567890 here")
+    sample = "glpat-abcdefghij1234567890"  # echelon-allow-secret
+    findings = scan_text(f"token {sample} here")
     assert any(f.pattern_name == "gitlab-token" for f in findings)
     assert "abcdefghij" not in findings[0].preview
 

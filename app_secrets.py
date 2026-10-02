@@ -91,6 +91,11 @@ class SecretFinding:
     preview: str
 
 
+# Lines containing this marker are skipped by scan_file. For synthetic
+# fixtures in tests ONLY, never as a way to silence real findings:
+#   SAMPLE = "ghp_fake..."  # echelon-allow-secret: synthetic test fixture
+ALLOW_MARKER = "echelon-allow-secret"
+
 # Patterns used by `--check-secrets` to catch accidentally committed keys.
 # These are deliberately narrow to avoid false positives.
 _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -117,7 +122,7 @@ def scan_text(text: str, *, location: str = "<text>") -> list[SecretFinding]:
 def scan_file(path: str) -> list[SecretFinding]:
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
-            content = fh.read()
+            lines = fh.read().splitlines()
     except OSError:
         return []
     # Skip scanning the active local config itself: it is *expected* to hold
@@ -127,4 +132,9 @@ def scan_file(path: str) -> list[SecretFinding]:
     basename = os.path.basename(path)
     if basename == "config.json":
         return []
-    return scan_text(content, location=path)
+    findings: list[SecretFinding] = []
+    for lineno, line in enumerate(lines, start=1):
+        if ALLOW_MARKER in line:
+            continue
+        findings.extend(scan_text(line, location=f"{path}:{lineno}"))
+    return findings
