@@ -71,16 +71,22 @@ jobs:
           fi
       - name: Build standalone binary (uv + PyInstaller)
         shell: bash
-        run: >
-          uv run --no-project --with pyinstaller
-          pyinstaller --onefile --noconfirm --clean
-          --name "echelon-${TAG}-${{ matrix.target }}"
-          echelon.py
+        # NOTE: do NOT use --no-project here. PyInstaller must run with the
+        # project dependencies installed, otherwise imports (e.g. requests)
+        # are missing from its analysis and the binary dies at startup.
+        run: |
+          uv sync
+          uv run --with pyinstaller pyinstaller --onefile --noconfirm --clean \
+            --name "echelon-${TAG}-${{ matrix.target }}" \
+            echelon.py
       - name: Smoke test binary
         shell: bash
         run: |
           ls dist/
           ./dist/echelon-${TAG}-${{ matrix.target }}* --version
+          ./dist/echelon-${TAG}-${{ matrix.target }}* --check-secrets
+          ECHELON_CONFIG="$RUNNER_TEMP/smoke-config.json" ./dist/echelon-${TAG}-${{ matrix.target }}* --add "https://gitlab.com/gitlab-org/gitlab/-/blob/master/README.md#L1-L3" --note "release smoke test"
+          ECHELON_CONFIG="$RUNNER_TEMP/smoke-config.json" ./dist/echelon-${TAG}-${{ matrix.target }}* --check --no-notify
       - name: Write SHA256SUMS
         shell: bash
         run: |
