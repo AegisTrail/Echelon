@@ -1,0 +1,131 @@
+name: Release binaries
+
+# Builds standalone binaries with uv + PyInstaller and attaches them to a
+# GitHub Release. Triggered by pushing a tag like v0.3.0, or manually with a
+# tag name. The tag must match _version.py (checked in the test job).
+#
+#   git tag v0.3.0 && git push origin v0.3.0
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.3.0, must match _version.py)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      - name: Check tag matches _version.py
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          fi
+          VER="v$(uv run python -c 'from _version import __version__; print(__version__)')"
+          echo "tag=$TAG version=$VER"
+          test "$TAG" = "$VER" || { echo "Tag $TAG does not match _version.py ($VER)"; exit 1; }
+
+  binaries:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x86_64
+          - os: macos-latest
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Resolve tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
+          else
+            echo "TAG=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          fi
+      - name: Build standalone binary (uv + PyInstaller)
+        shell: bash
+        run: >
+          uv run --no-project --with pyinstaller
+          pyinstaller --onefile --noconfirm --clean
+          --name "echelon-${TAG}-${{ matrix.target }}"
+          echelon.py
+      - name: Smoke test binary
+        shell: bash
+        run: |
+          ls dist/
+          ./dist/echelon-${TAG}-${{ matrix.target }}* --version
+      - name: Write SHA256SUMS
+        shell: bash
+        run: |
+          uv run --no-project python -c "
+          import glob, hashlib, os
+          os.chdir('dist')
+          lines = []
+          for f in sorted(glob.glob('echelon-*')):
+              if os.path.isfile(f):
+                  h = hashlib.sha256(open(f, 'rb').read()).hexdigest()
+                  lines.append(f'{h}  {f}')
+          open('SHA256SUMS.txt', 'w').write('\n'.join(lines) + '\n')
+          print('\n'.join(lines))
+          "
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.target }}
+          path: |
+            dist/echelon-*
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  release:
+    needs: binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - run: uv build --out-dir release-assets
+      - name: Resolve tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "TAG=${{ inputs.tag }}" >> "$GITHUB_ENV"
+          else
+            echo "TAG=${{ github.ref_name }}" >> "$GITHUB_ENV"
+          fi
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          files: release-assets/*
+          generate_release_notes: true

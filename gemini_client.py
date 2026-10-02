@@ -1,21 +1,22 @@
 import requests
-from typing import Optional
 
 
 class GeminiClient:
-    def __init__(self, api_key: str, model: str, endpoint: Optional[str] = None):
+    def __init__(self, api_key: str, model: str, endpoint: str | None = None):
         self.api_key = api_key
         self.model = model
-        self.base_endpoint = (endpoint or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+        self.base_endpoint = (
+            endpoint or "https://generativelanguage.googleapis.com/v1beta"
+        ).rstrip("/")
 
-    def summarize_diff(self, diff_text: str) -> Optional[str]:
+    def summarize_diff(self, diff_text: str) -> str | None:
         if not diff_text.strip():
             return None
         url = f"{self.base_endpoint}/models/{self.model}:generateContent"
         system_instruction = (
             "You are a code review assistant. The user will send you a unified diff for a SMALL CODE SNIPPET, "
             "not the whole file. The diff only includes changed lines (and sometimes @@ hunk headers). "
-            "Summarize the change in 1–3 short bullet points, focusing on behavior changes, security impact, "
+            "Summarize the change in 1-3 short bullet points, focusing on behavior changes, security impact, "
             "and configuration changes. Reply in plain text, no markdown code fences."
         )
         user_text = f"Here is the diff:\n\n{diff_text}"

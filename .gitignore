@@ -1,7 +1,22 @@
 __pycache__/
 build/
 dist/
+*.spec
 wheels/
 *.egg-info
-.venv
+.venv/
+.uv/
+.pytest_cache/
+.ruff_cache/
+# --- Echelon secrets & local state (NEVER commit) ---
 config.json
+config.json.bak
+*-config.json
+*.bak
+.echelon/
+echelon-history.db
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local

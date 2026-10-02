@@ -1,5 +1,4 @@
 import requests
-from typing import Optional
 
 
 class OllamaClient:
@@ -7,13 +6,13 @@ class OllamaClient:
         self.endpoint = endpoint.rstrip("/")
         self.model = model
 
-    def summarize_diff(self, diff_text: str) -> Optional[str]:
+    def summarize_diff(self, diff_text: str) -> str | None:
         if not diff_text.strip():
             return None
         url = f"{self.endpoint}/api/chat"
         system_prompt = (
             "You are a code review assistant. The user will send a unified diff containing only changed lines. "
-            "Summarize the change in 1–3 short bullet points, focusing on behavior changes, security impact, and configuration changes. Reply in plain text."
+            "Summarize the change in 1-3 short bullet points, focusing on behavior changes, security impact, and configuration changes. Reply in plain text."
         )
         user_prompt = f"Diff:\n\n{diff_text}"
         payload = {
